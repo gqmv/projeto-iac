@@ -16,53 +16,61 @@ Teste:          MVI     R1, vector
                 BR      Teste
 
 
-atualizajogo:   DEC     R6
-                STOR    M[R6], R4
-                DEC     R6
-                STOR    M[R6], R5
+atualizajogo:   DEC     R6 ; PUSH
+                STOR    M[R6], R4 ; PUSH
+                DEC     R6 ; PUSH
+                STOR    M[R6], R5 ; PUSH
                 
-                ADD     R2,R2,R1; Obtem o ultimo elemento do array.
+                ADD     R2,R2,R1 ; Obtem o ultimo elemento do array.
                 
                 INC     R1 ; Pula o primeiro elemento.
                 DEC     R2 ; Define R2 como o penultimo elemento.
 
-recurs1:        LOAD    R4, M[R1]
-                DEC     R1
+recurs1:        LOAD    R4, M[R1] ; Obtem o valor na posicao indicada por R1.
+                DEC     R1 ; Volta para a posicao anterior.
                 
-                STOR    M[R1], R4
+                STOR    M[R1], R4 ; Coloca o valor que estava em n em n-1.
                 
-                INC     R1
+                INC     R1 ; Volta ao valor n de R1.
                 
-                CMP     R1,R2
+                CMP     R1,R2 ; Verifica se n e o ultimo elemento que deve ser movido.
                 BR.Z    acaboumatriz
                 
-                INC     R1
+                INC     R1 ; Passa para o proximo elemento.
                 
                 BR      recurs1
                 
-acaboumatriz:   DEC     R6
-                STOR    M[R6], R7 
-                DEC     R6
-                STOR    M[R6], R1
+acaboumatriz:   DEC     R6 ; PUSH
+                STOR    M[R6], R7 ; PUSH
+                DEC     R6 ; PUSH
+                STOR    M[R6], R1 ; PUSH
                 
-                MVI     R1, 4
+                MVI     R1, 4 ; Chama a funcao geracacto com o parametro 4.
                 JAL     geracacto
                 
-                LOAD    R1, M[R6]
-                INC     R6
-                LOAD    R7, M[R6]
-                INC     R6
+                LOAD    R1, M[R6] ; POP
+                INC     R6 ; POP
+                LOAD    R7, M[R6] ; POP
+                INC     R6 ; POP
                 
-                STOR    M[R1], R3
+                STOR    M[R1], R3 ; Guarda no ultimo elemento do vetor o valor de retorno de geracacto.
                 
-                JMP     R7
+                LOAD    R5, M[R6] ; POP
+                INC     R6 ; POP
+                LOAD    R4, M[R6] ; POP
+                INC     R6 ; POP
                 
-geracacto:      DEC     R6
-                STOR    M[R6], R4
-                DEC     R6
-                STOR    M[R6], R5
+                JMP     R7 ; Return
                 
-                MVI     R4, X
+geracacto:      DEC     R6 ; PUSH
+                STOR    M[R6], R4 ; PUSH
+                DEC     R6 ; PUSH
+                STOR    M[R6], R5 ; PUSH
+                
+                ; A funcao geracacto segue a risca o pseudo-codigo descrito
+                ; nas especificacoes do projeto e, portanto, nao sera extensivamente comentada.
+                
+                MVI     R4, X 
                 LOAD    R4, M[R4]
                 
                 
