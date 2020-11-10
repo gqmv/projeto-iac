@@ -61,7 +61,7 @@ acaboumatriz:   DEC     R6 ; PUSH
                 LOAD    R4, M[R6] ; POP
                 INC     R6 ; POP
                 
-                JMP     R7 ; Return
+                JMP     R7 ; Retorna.
                 
 geracacto:      ; A funcao recebe em R1 o valor da altura.
                 DEC     R6 ; PUSH
@@ -103,7 +103,7 @@ else:           MVI     R5, X
                 LOAD    R4, M[R6] ; POP
                 INC     R6 ; POP
                 
-                JMP     R7
+                JMP     R7 ; Retorna valor entre 1 e altura.
                 
 ret0:           MVI     R3, 0
 
@@ -112,4 +112,4 @@ ret0:           MVI     R3, 0
                 LOAD    R4, M[R6] ; POP
                 INC     R6 ; POP
                 
-                JMP     R7
+                JMP     R7 ; Retorna 0.
