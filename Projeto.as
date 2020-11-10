@@ -1,22 +1,23 @@
-ORIG            0100h
-X               WORD    5
-
 ORIG            0000h
 
+X               WORD    5 ; Semente.
 
-vector          TAB     10
+vector          TAB     80
                 
-Teste:          MVI     R1, vector
-                MVI     R2, 10
+Teste:          MVI     R1, vector ; Primeiro elemento do vector.
+                MVI     R2, 80 ; Numero de elementos.
                 
-                MVI     R6, 4000h
+                MVI     R6, 4000h ; Inicializacao da pilha.
                 
                 JAL     atualizajogo
                 
-                BR      Teste
+                BR      Teste ; Loop utilizado apenas para depuracao.
+                              ; Deve ser removido para producao.
 
 
-atualizajogo:   DEC     R6 ; PUSH
+atualizajogo:   ; A funcao recebe em R1 o endereco de memoria do primeiro elemento.
+                ; A funcao recebe em R2 a quantidade de elementos
+                DEC     R6 ; PUSH
                 STOR    M[R6], R4 ; PUSH
                 DEC     R6 ; PUSH
                 STOR    M[R6], R5 ; PUSH
@@ -62,7 +63,8 @@ acaboumatriz:   DEC     R6 ; PUSH
                 
                 JMP     R7 ; Return
                 
-geracacto:      DEC     R6 ; PUSH
+geracacto:      ; A funcao recebe em R1 o valor da altura.
+                DEC     R6 ; PUSH
                 STOR    M[R6], R4 ; PUSH
                 DEC     R6 ; PUSH
                 STOR    M[R6], R5 ; PUSH
@@ -71,7 +73,7 @@ geracacto:      DEC     R6 ; PUSH
                 ; nas especificacoes do projeto e, portanto, nao sera extensivamente comentada.
                 
                 MVI     R4, X 
-                LOAD    R4, M[R4]
+                LOAD    R4, M[R4] ; R4 Contem o valor de X.
                 
                 
                 MVI     R5, 1b
@@ -80,7 +82,7 @@ geracacto:      DEC     R6 ; PUSH
                 SHR     R4
                 
                 CMP     R5, R0
-                BR.Z    else
+                BR.Z    else ; Executa o salto se R5 == 0
                 
                 MVI     R2, b400h
                 XOR     R4, R4, R2
@@ -90,23 +92,24 @@ else:           MVI     R5, X
                 
                 MVI     R2, 62258
                 CMP     R4, R2
-                BR.N    ret0
+                BR.C    ret0 ; Executa o salto se R4 < R2
                 
                 DEC     R1
                 AND     R3, R1, R4
                 INC     R3
                 
-                LOAD    R5, M[R6]
-                INC     R6
-                LOAD    R4, M[R6]
-                INC     R6
+                LOAD    R5, M[R6] ; POP
+                INC     R6 ; POP
+                LOAD    R4, M[R6] ; POP
+                INC     R6 ; POP
                 
                 JMP     R7
                 
 ret0:           MVI     R3, 0
-                LOAD    R5, M[R6]
-                INC     R6
-                LOAD    R4, M[R6]
-                INC     R6
+
+                LOAD    R5, M[R6] ; POP
+                INC     R6 ; POP
+                LOAD    R4, M[R6] ; POP
+                INC     R6 ; POP
                 
-                JMP     R7     
+                JMP     R7
