@@ -27,7 +27,7 @@ atualizajogo:   ; A funcao recebe em R1 o endereco de memoria do primeiro elemen
                 INC     R1 ; Pula o primeiro elemento.
                 DEC     R2 ; Define R2 como o penultimo elemento.
 
-recurs1:        LOAD    R4, M[R1] ; Obtem o valor na posicao indicada por R1.
+loop:           LOAD    R4, M[R1] ; Obtem o valor na posicao indicada por R1.
                 DEC     R1 ; Volta para a posicao anterior.
                 
                 STOR    M[R1], R4 ; Coloca o valor que estava em n em n-1.
@@ -39,7 +39,7 @@ recurs1:        LOAD    R4, M[R1] ; Obtem o valor na posicao indicada por R1.
                 
                 INC     R1 ; Passa para o proximo elemento.
                 
-                BR      recurs1
+                BR      loop
                 
 acaboumatriz:   DEC     R6 ; PUSH
                 STOR    M[R6], R7 ; PUSH
