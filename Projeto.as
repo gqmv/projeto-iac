@@ -1,3 +1,6 @@
+; Gabriel Queiroz Monteiro Vieira & Yassir Mahomed Yassin
+; Except where otherwise noted, this work is licensed under: https://www.gnu.org/licenses/gpl-3.0.html
+
 ORIG            0000h
 
 X               WORD    5 ; Semente.
