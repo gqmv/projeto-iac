@@ -742,14 +742,17 @@ AUXILIARY_TIMER_ISR:
                 DEC     R6
                 STOR    M[R6], R2
                 
+                ; Resets the counter
                 MVI     R2, TIMER_COUNTVAL
                 MVI     R1, TIMER_COUNTER
                 STOR    M[R1], R2
                 
+                ; Starts the timer
                 MVI     R1, TIMER_SETSTART
                 MVI     R2, TIMER_CONTROL
                 STOR    M[R2], R1
                 
+                ; Increases the tick
                 MVI     R2, TIMER_TICK
                 LOAD    R1, M[R2]
                 INC     R1
