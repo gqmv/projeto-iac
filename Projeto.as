@@ -34,6 +34,7 @@ INT_MASK        EQU     FFFAh
 INT_MASK_VAL    EQU     8009h ; 1000 0000 0000 1001 b
 
 ; Game Data
+GAME_BASE       EQU     21
 MAX_JUMP        EQU     5
 MAX_CACTUS_H    EQU     3
 GAME_BASE       EQU     21
@@ -42,9 +43,9 @@ DIN_COLUMN      EQU     7
 FIELD_SIZE      EQU     80
 FIELD_FLOOR     EQU     '-'
 FIELD_CACTUS    EQU     '#'
+JMP_KEY         EQU     ' '
 
 ; GUI Data
-JMP_KEY         EQU     ' '
 GAME_OVER_STR   STR     0,1,a00h,0,2,ffh,'                                         GAME OVER',0,1,b00h,'                               PRESS ANY KEY TO TRY AGAIN',0,0
 WELCOME_STR     STR     0,1,c00h,'                          WELCOME TO THE DINOSSAUR GAME',0,1,d00h,'                      USE THE SPACEBAR OR THE UPKEY TO JUMP',0,1,f00h,'                             PRESS ANY KEY TO BEGIN',0,1,2800h,'</> BY GABRIEL VIEIRA AND YASSIR YASSIN',0,0
 
@@ -53,7 +54,7 @@ WELCOME_STR     STR     0,1,c00h,'                          WELCOME TO THE DINOS
 ; -----------------
 
 TIMER_TICK      WORD    0
-SEED            WORD    125 ; Arbitrary value
+SEED            WORD    0
 IS_JUMPING      WORD    0
 IS_FALLING      WORD    0
 DIN_HEIGHT      WORD    0
@@ -99,6 +100,11 @@ MAIN:           MVI     R6, SP_INIT ; Stack initiation
                 LOAD    R1, M[R5]
                 CMP     R1, R0
                 BR.NZ   START
+
+                MVI     R1, SEED
+                MVI     R2, TIMER_TICK
+                LOAD    R2, M[R2]
+                STOR    M[R1], R2
 
                 BR.Z    .WAIT_FOR_BEGIN
 
