@@ -47,7 +47,7 @@ JMP_KEY         EQU     ' '
 
 ; GUI Data
 GAME_OVER_STR   STR     0,1,a00h,0,2,ffh,'                                         GAME OVER',0,1,b00h,'                               PRESS ANY KEY TO TRY AGAIN',0,0
-WELCOME_STR     STR     0,1,c00h,'                          WELCOME TO THE DINOSSAUR GAME',0,1,d00h,'                      USE THE SPACEBAR OR THE UPKEY TO JUMP',0,1,f00h,'                             PRESS ANY KEY TO BEGIN',0,1,2800h,'</> BY GABRIEL VIEIRA AND YASSIR YASSIN',0,0
+WELCOME_STR     STR     0,1,c00h,'                          WELCOME TO THE DINOSSAUR GAME',0,1,d00h,'                      USE THE SPACEBAR OR THE UPKEY TO JUMP',0,1,f00h,'                             PRESS ANY KEY TO BEGIN',0,1,2800h,'</> BY GABRIEL VIEIRA AND YASSIR YASSIN',0,1,2900h,'LICENSED UNDER THE GNU-GPL V3',0,0
 
 ; -----------------
 ; PROGRAM GLOBAL VARIABLES
@@ -75,6 +75,9 @@ MAIN:           MVI     R6, SP_INIT ; Stack initiation
                 STOR    M[R1], R2
                 ENI
 
+                ; First timer initialization
+                ; This timer will be used to pseudo-randomize the initial seed
+                ; based on how long the player takes to start the game.
                 MVI     R1, TIMER_COUNTER
                 MVI     R2, TIMER_COUNTVAL
                 STOR    M[R1], R2
@@ -86,6 +89,7 @@ MAIN:           MVI     R6, SP_INIT ; Stack initiation
                 MVI     R2, TIMER_SETSTART
                 STOR    M[R1], R2
 
+                ; Prints the welcome message.
                 MVI     R1, WELCOME_STR
                 JAL     PRINT_TEXT
 
@@ -93,6 +97,8 @@ MAIN:           MVI     R6, SP_INIT ; Stack initiation
                 STOR    M[R4], R0
                 MVI     R5, TERM_STATUS
 .WAIT_FOR_BEGIN:
+                ; Waits for the player to hit the
+                ; <KEY_ZERO> or any keyboard key.
                 LOAD    R1, M[R4]
                 CMP     R1, R0
                 BR.NZ   START
@@ -108,8 +114,10 @@ MAIN:           MVI     R6, SP_INIT ; Stack initiation
 
                 BR.Z    .WAIT_FOR_BEGIN
 
-                ; Timer setup
-START:          MVI     R1, TIMER_CONTROL
+                
+START:          ; Game timer initialization
+                ; This timer will be used to peform periodic tasks.
+                MVI     R1, TIMER_CONTROL
                 MVI     R2, TIMER_SETSTOP
                 STOR    M[R1], R2
 
@@ -124,6 +132,8 @@ START:          MVI     R1, TIMER_CONTROL
                 MVI     R2, TIMER_SETSTART
                 STOR    M[R1], R2
 
+                ; Game loop
+                ; This portion is responsible for actually running the game.
                 MVI     R4, TIMER_TICK
                 MVI     R5, TERM_STATUS
 .LOOP:          LOAD    R1, M[R4]
@@ -148,6 +158,8 @@ START:          MVI     R1, TIMER_CONTROL
                 MVI     R1, GAME_OVER_STR
                 JAL     PRINT_TEXT
 
+                ; Waits for the player to press <KEY_ZERO> or
+                ; any keyboard key and will then restart the game.
                 MVI     R4, PLAY_AGAIN
                 STOR    M[R4], R0
                 MVI     R5, TERM_STATUS
@@ -169,6 +181,7 @@ PROCESS_TIMER_EVENT:
                 DEC     R6
                 STOR    M[R6], R7
                 
+                ; Decreases the TICK, as one event is being processed.
                 MVI     R1, TIMER_TICK
                 DSI
                 LOAD    R2, M[R1]
@@ -176,34 +189,40 @@ PROCESS_TIMER_EVENT:
                 STOR    M[R1], R2
                 ENI
 
+                ; Increases the score and prints it in the DISP7.
                 MVI     R2, SCORE
                 LOAD    R1, M[R2]
                 INC     R1
                 STOR    M[R2], R1
-
                 JAL     PRINT_DISP7
 
+                ; Updates the FIELD vector.
                 MVI     R1, FIELD
                 MVI     R2, FIELD_SIZE
                 JAL     UPDATE_GAME
 
                 JAL     CLEAR_TERMINAL
 
+                ; Checks if the dinossaur is currently jumpingm
                 MVI     R1, IS_JUMPING
                 LOAD    R1, M[R1]
                 CMP     R1, R0
                 BR.Z    .CONTINUE
 
+                ; Checks if the dinossaur is currently falling.
                 MVI     R1, IS_FALLING
                 LOAD    R1, M[R1]
                 CMP     R1, R0
                 BR.Z    .NOT_FALLING
 
+                ; As the dinossaur is falling, it's height will be decreased.
                 MVI     R1, DIN_HEIGHT
                 LOAD    R2, M[R1]
                 DEC     R2
                 STOR    M[R1], R2
 
+                ; Checks if the dinossaur has hit the ground.
+                ; If so, sets IS_JUMPING to 0.
                 CMP     R2, R0
                 BR.NZ   .CONTINUE
                 MVI     R1, IS_FALLING
@@ -212,11 +231,14 @@ PROCESS_TIMER_EVENT:
                 STOR    M[R1], R0
                 BR      .CONTINUE
 
-.NOT_FALLING:   MVI     R1, DIN_HEIGHT
+.NOT_FALLING:   ; As the dinossaur is not falling, it's height will be increased.
+                MVI     R1, DIN_HEIGHT
                 LOAD    R2, M[R1]
                 INC     R2
                 STOR    M[R1], R2
 
+                ; Checks if the dinossaur has reached the maximum jump height.
+                ; If so, sets IS_FALLING to 1.
                 MVI     R1, MAX_JUMP
                 CMP     R2, R1
                 BR.NZ   .CONTINUE
@@ -224,7 +246,8 @@ PROCESS_TIMER_EVENT:
                 MVI     R2, 1
                 STOR    M[R1], R2
 
-.CONTINUE:      MVI     R1, DIN_HEIGHT
+.CONTINUE:      
+                MVI     R1, DIN_HEIGHT
                 LOAD    R1, M[R1]
                 JAL     PRINT_DINO
 
@@ -244,6 +267,8 @@ PROCESS_KEYBOARD_EVENT:
                 CMP     R1, R2
                 JMP.NZ  R7
                 
+                ; If the JMP_KEY has been pressed, the interruption
+                ; responsible for handling <KEY_UP> will be raised.
                 INT     30
                 JMP     R7
 
@@ -261,13 +286,31 @@ CLEAR_FIELD:    ; R1: Memory address of the vector.
 
                 JMP     R7
 
+CLEAR_TERMINAL:
+                MVI     R1, TERM_CURSOR
+                MVI     R2, 0
+                STOR    M[R1], R2
+
+                MVI     R1, TERM_WRITE
+                MVI     R2, ' '
+                MVI     R3, 3600
+
+                ; Iterates through the terminal, printing ' ' everywhere.
+.LOOP:          STOR    M[R1], R2
+                DEC     R3
+                BR.NZ   .LOOP
+
+                JMP     R7
+
 PRINT_DISP7:    ; R1: The numeric value that should be displayed.
                 MVI     R3, Fh
                 AND     R3, R3, R1
 
+                ; Print on D0
                 MVI     R2, DISP7_D0
                 STOR    M[R2], R3
                 
+                ; Print on D1
                 SHR     R1
                 SHR     R1
                 SHR     R1
@@ -277,6 +320,7 @@ PRINT_DISP7:    ; R1: The numeric value that should be displayed.
                 MVI     R2, DISP7_D1
                 STOR    M[R2], R3
                 
+                ; Print on D2
                 SHR     R1
                 SHR     R1
                 SHR     R1
@@ -286,6 +330,7 @@ PRINT_DISP7:    ; R1: The numeric value that should be displayed.
                 MVI     R2, DISP7_D2
                 STOR    M[R2], R3
                 
+                ; Print on D3
                 SHR     R1
                 SHR     R1
                 SHR     R1
@@ -295,6 +340,7 @@ PRINT_DISP7:    ; R1: The numeric value that should be displayed.
                 MVI     R2, DISP7_D3
                 STOR    M[R2], R3
                 
+                ; Print on D4
                 SHR     R1
                 SHR     R1
                 SHR     R1
@@ -304,6 +350,7 @@ PRINT_DISP7:    ; R1: The numeric value that should be displayed.
                 MVI     R2, DISP7_D4
                 STOR    M[R2], R3
                 
+                ; Print on D5
                 SHR     R1
                 SHR     R1
                 SHR     R1
@@ -315,59 +362,6 @@ PRINT_DISP7:    ; R1: The numeric value that should be displayed.
                 
                 JMP     R7
 
-CHECK_LOST:
-                DEC     R6
-                STOR    M[R6], R4
-                
-                MVI     R1, DIN_HEIGHT
-                LOAD    R1, M[R1]
-
-                MVI     R2, FIELD
-                MVI     R3, DIN_COLUMN
-
-                ADD     R2, R2, R3
-
-                LOAD    R4, M[R2]
-                CMP     R1, R4
-                BR.N    .LOST
-                
-                INC     R2
-
-                LOAD    R4, M[R2]
-                CMP     R1, R4
-                BR.N    .LOST
-
-                INC     R2
-
-                LOAD    R4, M[R2]
-                CMP     R1, R4
-                BR.N    .LOST
-
-                MVI     R3, 0
-                LOAD    R4, M[R6]
-                INC     R6
-                JMP     R7
-
-.LOST:          MVI     R3, 1
-                LOAD    R4, M[R6]
-                INC     R6
-                JMP     R7
-
-CLEAR_TERMINAL:
-                MVI     R1, TERM_CURSOR
-                MVI     R2, 0
-                STOR    M[R1], R2
-
-                MVI     R1, TERM_WRITE
-                MVI     R2, ' '
-                MVI     R3, 3600
-
-.LOOP:          STOR    M[R1], R2
-                DEC     R3
-                BR.NZ   .LOOP
-
-                JMP     R7
-
 PRINT_FIELD:    ; R1: Memory address of the vector.
                 ; R2: Number of elements in the vector.
                 DEC     R6
@@ -377,12 +371,14 @@ PRINT_FIELD:    ; R1: Memory address of the vector.
                 DEC     R6
                 STOR    M[R6], R5
 
+                ; Stores in R4 the address of the last element of the vector.
                 MOV     R4, R1
                 ADD     R4, R4, R2
 
 .LOOP:          DEC     R2
                 MVI     R1, GAME_BASE
                 
+                ; Gets the cursor of the current column in the terminal.
                 JAL     GET_CURSOR
                 
                 MVI     R5, TERM_CURSOR
@@ -396,7 +392,9 @@ PRINT_FIELD:    ; R1: Memory address of the vector.
                 LOAD    R3, M[R4]
                 SUB     R1, R5, R3
 
-.C_LOOP:        MVI     R5, GAME_BASE
+.C_LOOP:        ; Checks if the value of the current element ( X ) of the vector is 0.
+                ; If not, prints <FIELD_CACTUS> <X> lines above the <GAME_BASE> and then decreases X.
+                MVI     R5, GAME_BASE
                 CMP     R1, R5
                 BR.Z    .CONTINUE
                 
@@ -417,8 +415,9 @@ PRINT_FIELD:    ; R1: Memory address of the vector.
 
                 BR      .C_LOOP
             
-.CONTINUE:      MVI     R1, GAME_BASE
-                
+.CONTINUE:      
+                ; Stores in R4 the address of the previous element of the vector.
+                ; Then, checks if there are more elements.
                 DEC     R4
                 CMP     R2, R0
                 BR.NZ   .LOOP
@@ -433,8 +432,6 @@ PRINT_FIELD:    ; R1: Memory address of the vector.
                 JMP     R7
             
 PRINT_DINO: ; R1: Height at which the dinossaur should be printed
-            ; Returns 1: If the dinossaur was sucessfully drawn.
-            ; Returns 0: If an obstacle was found while trying to drawn the dinossaur.
                 DEC     R6
                 STOR    M[R6], R7
                 DEC     R6
@@ -445,6 +442,7 @@ PRINT_DINO: ; R1: Height at which the dinossaur should be printed
                 MVI     R4, TERM_CURSOR
                 MVI     R5, TERM_WRITE
 
+                ; Sets R1 to the line at which the dinossaur's feet will be printed.
                 MVI     R2, GAME_BASE
                 INC     R1
                 SUB     R1, R2, R1
@@ -526,6 +524,97 @@ PRINT_DINO: ; R1: Height at which the dinossaur should be printed
 
                 JMP     R7
 
+PRINT_TEXT:     ; R1: Memory adress of the string that should be printed.  
+                DEC     R6
+                STOR    M[R6], R4
+                DEC     R6
+                STOR    M[R6], R5
+
+                MOV     R4, R1
+
+                MVI     R1, TERM_WRITE
+                MVI     R2, TERM_CURSOR
+                MVI     R3, TERM_COLOR
+
+.LOOP:          LOAD    R5, M[R4]
+                INC     R4
+                CMP     R5, R0
+                BR.Z    .Control
+                STOR    M[R1], R5
+                BR      .LOOP
+
+.Control:
+                LOAD    R5, M[R4]
+                INC     R4
+                DEC     R5
+                BR.Z    .Position
+                DEC     R5
+                BR.Z    .Color
+                BR      .End
+
+.Position:
+                LOAD    R5, M[R4]
+                INC     R4
+                STOR    M[R2], R5
+                BR      .LOOP
+
+.Color:
+                LOAD    R5, M[R4]
+                INC     R4
+                STOR    M[R3], R5
+                BR      .LOOP
+
+.End:           
+                LOAD    R5, M[R6]
+                INC     R6
+                LOAD    R4, M[R6]
+                INC     R6
+                
+                JMP     R7
+
+CHECK_LOST:     ; Returns 1: If the player lost.
+                ; Returns 0: If the player didn't lose.
+                DEC     R6
+                STOR    M[R6], R4
+                
+                MVI     R1, DIN_HEIGHT
+                LOAD    R1, M[R1]
+
+                MVI     R2, FIELD
+                MVI     R3, DIN_COLUMN
+
+                ; Sets R2 to the address of the cactus at the dinossaur's column.
+                ADD     R2, R2, R3
+
+                LOAD    R4, M[R2]
+                CMP     R1, R4
+                BR.N    .LOST
+                
+                INC     R2
+
+                LOAD    R4, M[R2]
+                CMP     R1, R4
+                BR.N    .LOST
+
+                INC     R2
+
+                LOAD    R4, M[R2]
+                CMP     R1, R4
+                BR.N    .LOST
+
+                ; The player has'nt met any of the criterias for losing.
+                ; Therefore, return 0.
+                MVI     R3, 0
+                LOAD    R4, M[R6]
+                INC     R6
+                JMP     R7
+
+.LOST:          ; If the player lost, return 1.
+                MVI     R3, 1
+                LOAD    R4, M[R6]
+                INC     R6
+                JMP     R7
+
 GET_CURSOR: ; R1: Line
             ; R2: Column
             ; Returns: The value of the cursor at Line <R1> and Column <R2>.
@@ -541,7 +630,7 @@ GET_CURSOR: ; R1: Line
                 OR      R3, R1, R2
 
                 JMP     R7
-                
+
 UPDATE_GAME:    ; R1: Address of the vector.
                 ; R2: Number of elements in the vector.
                 DEC     R6 ; PUSH
@@ -642,53 +731,6 @@ GEN_CACTUS:     ; R1: Maximum height of the cactus.
                 LOAD    R4, M[R6] ; POP
                 INC     R6 ; POP
                 
-                JMP     R7
-
-PRINT_TEXT:     ; R1: Memory adress of the string that should be printed.  
-                DEC     R6
-                STOR    M[R6], R4
-                DEC     R6
-                STOR    M[R6], R5
-
-                MOV     R4, R1
-
-                MVI     R1, TERM_WRITE
-                MVI     R2, TERM_CURSOR
-                MVI     R3, TERM_COLOR
-
-.LOOP:          LOAD    R5, M[R4]
-                INC     R4
-                CMP     R5, R0
-                BR.Z    .Control
-                STOR    M[R1], R5
-                BR      .LOOP
-
-.Control:
-                LOAD    R5, M[R4]
-                INC     R4
-                DEC     R5
-                BR.Z    .Position
-                DEC     R5
-                BR.Z    .Color
-                BR      .End
-
-.Position:
-                LOAD    R5, M[R4]
-                INC     R4
-                STOR    M[R2], R5
-                BR      .LOOP
-
-.Color:
-                LOAD    R5, M[R4]
-                INC     R4
-                STOR    M[R3], R5
-                BR      .LOOP
-
-.End:           
-                LOAD    R5, M[R6]
-                INC     R6
-                LOAD    R4, M[R6]
-                INC     R6
                 JMP     R7
 
 ; -----------------
