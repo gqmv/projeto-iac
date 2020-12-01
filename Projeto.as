@@ -7,6 +7,14 @@
 ; CallStack
 SP_INIT         EQU     7000h
 
+; 7 Segments Display
+DISP7_D0        EQU     FFF0h
+DISP7_D1        EQU     FFF1h
+DISP7_D2        EQU     FFF2h
+DISP7_D3        EQU     FFF3h
+DISP7_D4        EQU     FFEEh
+DISP7_D5        EQU     FFEFh
+
 ; Terminal
 TERM_READ       EQU     FFFFh
 TERM_STATUS     EQU     FFFDh
@@ -18,11 +26,12 @@ TERM_COLOR      EQU     FFFBh
 TIMER_CONTROL   EQU     FFF7h
 TIMER_COUNTER   EQU     FFF6h
 TIMER_SETSTART  EQU     1
+TIMER_SETSTOP   EQU     0
 TIMER_COUNTVAL  EQU     2
 
 ; Interruption Handling
 INT_MASK        EQU     FFFAh
-INT_MASK_VAL    EQU     8008h ; 1000 0000 0000 1000 b
+INT_MASK_VAL    EQU     8009h ; 1000 0000 0000 1001 b
 
 ; Game Data
 MAX_JUMP        EQU     5
@@ -36,7 +45,8 @@ FIELD_CACTUS    EQU     '#'
 
 ; GUI Data
 JMP_KEY         EQU     ' '
-GAME_OVER_STR   STR     0,1,800h,'                                 GAME OVER',0,1,900h,'                                  SCORE:',0,0
+GAME_OVER_STR   STR     0,1,a00h,0,2,ffh,'                                         GAME OVER',0,1,b00h,'                               PRESS ANY KEY TO TRY AGAIN',0,0
+WELCOME_STR     STR     0,1,c00h,'                          WELCOME TO THE DINOSSAUR GAME',0,1,d00h,'                      USE THE SPACEBAR OR THE UPKEY TO JUMP',0,1,f00h,'                             PRESS ANY KEY TO BEGIN',0,1,2800h,'</> BY GABRIEL VIEIRA AND YASSIR YASSIN',0,0
 
 ; -----------------
 ; PROGRAM GLOBAL VARIABLES
@@ -47,7 +57,8 @@ SEED            WORD    125 ; Arbitrary value
 IS_JUMPING      WORD    0
 IS_FALLING      WORD    0
 DIN_HEIGHT      WORD    0
-SCORE           WORD    '-'
+SCORE           WORD    0
+PLAY_AGAIN      WORD    0
 FIELD           TAB     FIELD_SIZE
 
 ; -----------------
@@ -63,7 +74,39 @@ MAIN:           MVI     R6, SP_INIT ; Stack initiation
                 STOR    M[R1], R2
                 ENI
 
+                MVI     R1, TIMER_COUNTER
+                MVI     R2, TIMER_COUNTVAL
+                STOR    M[R1], R2
+
+                MVI     R1, TIMER_TICK
+                STOR    M[R1], R0
+
+                MVI     R1, TIMER_CONTROL
+                MVI     R2, TIMER_SETSTART
+                STOR    M[R1], R2
+
+                MVI     R1, WELCOME_STR
+                JAL     PRINT_TEXT
+
+                MVI     R4, PLAY_AGAIN
+                STOR    M[R4], R0
+                MVI     R5, TERM_STATUS
+.WAIT_FOR_BEGIN:
+                LOAD    R1, M[R4]
+                CMP     R1, R0
+                BR.NZ   START
+
+                LOAD    R1, M[R5]
+                CMP     R1, R0
+                BR.NZ   START
+
+                BR.Z    .WAIT_FOR_BEGIN
+
                 ; Timer setup
+START:          MVI     R1, TIMER_CONTROL
+                MVI     R2, TIMER_SETSTOP
+                STOR    M[R1], R2
+
                 MVI     R1, TIMER_COUNTER
                 MVI     R2, TIMER_COUNTVAL
                 STOR    M[R1], R2
@@ -88,16 +131,184 @@ MAIN:           MVI     R6, SP_INIT ; Stack initiation
                 JAL     CHECK_LOST
                 CMP     R3, R0
                 BR.Z    .LOOP
+
+                MVI     R1, SCORE
+                STOR    M[R1], R0
+
+                MVI     R1, FIELD
+                MVI     R2, FIELD_SIZE
+                JAL     CLEAR_FIELD
+
+                MVI     R1, GAME_OVER_STR
+                JAL     PRINT_TEXT
+
+                MVI     R4, PLAY_AGAIN
+                STOR    M[R4], R0
+                MVI     R5, TERM_STATUS
+.WAIT_FOR_PLAYAGAIN:
+                LOAD    R1, M[R4]
+                CMP     R1, R0
+                BR.NZ   START
+
+                LOAD    R1, M[R5]
+                CMP     R1, R0
+                BR.NZ   START
+
+                BR.Z    .WAIT_FOR_PLAYAGAIN
+
+; -----------------
+; EVENT HANDLERS
+; -----------------
+PROCESS_TIMER_EVENT:
+                DEC     R6
+                STOR    M[R6], R7
                 
+                MVI     R1, TIMER_TICK
                 DSI
+                LOAD    R2, M[R1]
+                DEC     R2
+                STOR    M[R1], R2
+                ENI
 
-                JAL     GAME_OVER
+                MVI     R2, SCORE
+                LOAD    R1, M[R2]
+                INC     R1
+                STOR    M[R2], R1
 
-fim:            BR      fim
+                JAL     PRINT_DISP7
+
+                MVI     R1, FIELD
+                MVI     R2, FIELD_SIZE
+                JAL     UPDATE_GAME
+
+                JAL     CLEAR_TERMINAL
+
+                MVI     R1, IS_JUMPING
+                LOAD    R1, M[R1]
+                CMP     R1, R0
+                BR.Z    .CONTINUE
+
+                MVI     R1, IS_FALLING
+                LOAD    R1, M[R1]
+                CMP     R1, R0
+                BR.Z    .NOT_FALLING
+
+                MVI     R1, DIN_HEIGHT
+                LOAD    R2, M[R1]
+                DEC     R2
+                STOR    M[R1], R2
+
+                CMP     R2, R0
+                BR.NZ   .CONTINUE
+                MVI     R1, IS_FALLING
+                STOR    M[R1], R0
+                MVI     R1, IS_JUMPING
+                STOR    M[R1], R0
+                BR      .CONTINUE
+
+.NOT_FALLING:   MVI     R1, DIN_HEIGHT
+                LOAD    R2, M[R1]
+                INC     R2
+                STOR    M[R1], R2
+
+                MVI     R1, MAX_JUMP
+                CMP     R2, R1
+                BR.NZ   .CONTINUE
+                MVI     R1, IS_FALLING
+                MVI     R2, 1
+                STOR    M[R1], R2
+
+.CONTINUE:      MVI     R1, DIN_HEIGHT
+                LOAD    R1, M[R1]
+                JAL     PRINT_DINO
+
+                MVI     R1, FIELD
+                MVI     R2, FIELD_SIZE
+                JAL     PRINT_FIELD
                 
+                LOAD    R7, M[R6]
+                INC     R6
+                JMP     R7
+
+PROCESS_KEYBOARD_EVENT:
+                MVI     R1, TERM_READ
+                LOAD    R1, M[R1]
+                
+                MVI     R2, JMP_KEY
+                CMP     R1, R2
+                JMP.NZ  R7
+                
+                INT     30
+                JMP     R7
+
 ; -----------------
 ; SUB ROUTINES
 ; -----------------
+CLEAR_FIELD:    ; R1: Memory address of the vector.
+                ; R2: Number of elements in the vector.
+                STOR    M[R1], R0
+                INC     R1
+
+                DEC     R2
+                CMP     R2, R0
+                BR.NN   CLEAR_FIELD
+
+                JMP     R7
+
+PRINT_DISP7:    ; R1: The numeric value that should be displayed.
+                MVI     R3, Fh
+                AND     R3, R3, R1
+
+                MVI     R2, DISP7_D0
+                STOR    M[R2], R3
+                
+                SHR     R1
+                SHR     R1
+                SHR     R1
+                SHR     R1
+                MVI     R3, Fh
+                AND     R3, R3, R1
+                MVI     R2, DISP7_D1
+                STOR    M[R2], R3
+                
+                SHR     R1
+                SHR     R1
+                SHR     R1
+                SHR     R1
+                MVI     R3, Fh
+                AND     R3, R3, R1
+                MVI     R2, DISP7_D2
+                STOR    M[R2], R3
+                
+                SHR     R1
+                SHR     R1
+                SHR     R1
+                SHR     R1
+                MVI     R3, Fh
+                AND     R3, R3, R1
+                MVI     R2, DISP7_D3
+                STOR    M[R2], R3
+                
+                SHR     R1
+                SHR     R1
+                SHR     R1
+                SHR     R1
+                MVI     R3, Fh
+                AND     R3, R3, R1
+                MVI     R2, DISP7_D4
+                STOR    M[R2], R3
+                
+                SHR     R1
+                SHR     R1
+                SHR     R1
+                SHR     R1
+                MVI     R3, Fh
+                AND     R3, R3, R1
+                MVI     R2, DISP7_D5
+                STOR    M[R2], R3
+                
+                JMP     R7
+
 CHECK_LOST:
                 DEC     R6
                 STOR    M[R6], R4
@@ -150,83 +361,7 @@ CLEAR_TERMINAL:
                 BR.NZ   .LOOP
 
                 JMP     R7
-                
-PROCESS_KEYBOARD_EVENT:
-                MVI     R1, TERM_READ
-                LOAD    R1, M[R1]
-                
-                MVI     R2, JMP_KEY
-                CMP     R1, R2
-                JMP.NZ  R7
-                
-                INT     30
-                JMP     R7
 
-PROCESS_TIMER_EVENT:
-                DEC     R6
-                STOR    M[R6], R7
-                
-                MVI     R1, TIMER_TICK
-                DSI
-                LOAD    R2, M[R1]
-                DEC     R2
-                STOR    M[R1], R2
-                ENI
-                
-                MVI     R1, FIELD
-                MVI     R2, FIELD_SIZE
-                JAL     atualizajogo
-
-                JAL     CLEAR_TERMINAL
-
-
-                MVI     R1, IS_JUMPING
-                LOAD    R1, M[R1]
-                CMP     R1, R0
-                BR.Z    .CONTINUE
-
-                MVI     R1, IS_FALLING
-                LOAD    R1, M[R1]
-                CMP     R1, R0
-                BR.Z    .NOT_FALLING
-
-                MVI     R1, DIN_HEIGHT
-                LOAD    R2, M[R1]
-                DEC     R2
-                STOR    M[R1], R2
-
-                CMP     R2, R0
-                BR.NZ   .CONTINUE
-                MVI     R1, IS_FALLING
-                STOR    M[R1], R0
-                MVI     R1, IS_JUMPING
-                STOR    M[R1], R0
-                BR      .CONTINUE
-
-.NOT_FALLING:   MVI     R1, DIN_HEIGHT
-                LOAD    R2, M[R1]
-                INC     R2
-                STOR    M[R1], R2
-
-                MVI     R1, MAX_JUMP
-                CMP     R2, R1
-                BR.NZ   .CONTINUE
-                MVI     R1, IS_FALLING
-                MVI     R2, 1
-                STOR    M[R1], R2
-
-.CONTINUE:      MVI     R1, DIN_HEIGHT
-                LOAD    R1, M[R1]
-                JAL     PRINT_DINO
-
-                MVI     R1, FIELD
-                MVI     R2, FIELD_SIZE
-                JAL     PRINT_FIELD
-                
-                LOAD    R7, M[R6]
-                INC     R6
-                JMP     R7
-                
 PRINT_FIELD:    ; R1: Memory address of the vector.
                 ; R2: Number of elements in the vector.
                 DEC     R6
@@ -401,66 +536,68 @@ GET_CURSOR: ; R1: Line
 
                 JMP     R7
                 
-atualizajogo:   ; A funcao recebe em R1 o endereco de memoria do primeiro elemento.
-                ; A funcao recebe em R2 a quantidade de elementos
+UPDATE_GAME:    ; R1: Address of the vector.
+                ; R2: Number of elements in the vector.
                 DEC     R6 ; PUSH
                 STOR    M[R6], R4 ; PUSH
                 DEC     R6 ; PUSH
                 STOR    M[R6], R5 ; PUSH
                 
-                ADD     R2,R2,R1 ; Obtem o ultimo elemento do array.
+                ADD     R2,R2,R1 ; Gets the vector's last element.
                 
-                INC     R1 ; Pula o primeiro elemento.
-                DEC     R2 ; Define R2 como o penultimo elemento.
+                INC     R1 ; Skips the first element.
+                DEC     R2 ; Assign R2 to the address of the penultimate element.
 
-.loop:          LOAD    R4, M[R1] ; Obtem o valor na posicao indicada por R1.
-                DEC     R1 ; Volta para a posicao anterior.
+.LOOP:          LOAD    R4, M[R1]
+                DEC     R1
                 
-                STOR    M[R1], R4 ; Coloca o valor que estava em n em n-1.
+                STOR    M[R1], R4 ; Stores the value that was in address <n> at address <n-1>.
                 
-                INC     R1 ; Volta ao valor n de R1.
+                INC     R1
                 
-                CMP     R1,R2 ; Verifica se n e o ultimo elemento que deve ser movido.
-                BR.Z    .acaboumatriz
+                CMP     R1,R2
+                BR.Z    .DONE
                 
-                INC     R1 ; Passa para o proximo elemento.
+                INC     R1
                 
-                BR      .loop
+                BR      .LOOP
                 
-.acaboumatriz:  DEC     R6 ; PUSH
+.DONE:          DEC     R6 ; PUSH
                 STOR    M[R6], R7 ; PUSH
                 DEC     R6 ; PUSH
                 STOR    M[R6], R1 ; PUSH
                 
-                MVI     R1, MAX_CACTUS_H ; Chama a funcao geracacto com o parametro 4.
-                JAL     geracacto
+                MVI     R1, MAX_CACTUS_H
+                JAL     GEN_CACTUS
                 
                 LOAD    R1, M[R6] ; POP
                 INC     R6 ; POP
                 LOAD    R7, M[R6] ; POP
                 INC     R6 ; POP
                 
-                STOR    M[R1], R3 ; Guarda no ultimo elemento do vetor o valor de retorno de geracacto.
+                STOR    M[R1], R3 ; Stores in the last element of the vector the return value of GEN_CACTUS.
                 
                 LOAD    R5, M[R6] ; POP
                 INC     R6 ; POP
                 LOAD    R4, M[R6] ; POP
                 INC     R6 ; POP
                 
-                JMP     R7 ; Retorna.
+                JMP     R7
                 
                 
-geracacto:      ; A funcao recebe em R1 o valor da altura.
+GEN_CACTUS:     ; R1: Maximum height of the cactus.
+                ; Returns: An integer in the interval [0, R1]. There is a 95% chance that the return value will be 0.
                 DEC     R6 ; PUSH
                 STOR    M[R6], R4 ; PUSH
                 DEC     R6 ; PUSH
                 STOR    M[R6], R5 ; PUSH
                 
-                ; A funcao geracacto segue a risca o pseudo-codigo descrito
-                ; nas especificacoes do projeto e, portanto, nao sera extensivamente comentada.
+                ; This function strictly follows the pseudo-python code made availible
+                ; in the project's especifications and will therefore not be extensivelly
+                ; commented.
                 
                 MVI     R4, SEED
-                LOAD    R4, M[R4] ; R4 Contem o valor de X.
+                LOAD    R4, M[R4]
                 
                 
                 MVI     R5, 1b
@@ -469,17 +606,17 @@ geracacto:      ; A funcao recebe em R1 o valor da altura.
                 SHR     R4
                 
                 CMP     R5, R0
-                BR.Z    .else ; Executa o salto se R5 == 0
+                BR.Z    .ELSE
                 
                 MVI     R2, b400h
                 XOR     R4, R4, R2
                 
-.else:          MVI     R5, SEED
+.ELSE:          MVI     R5, SEED
                 STOR    M[R5], R4
                 
                 MVI     R2, 62258
                 CMP     R4, R2
-                BR.C    .ret0 ; Executa o salto se R4 < R2
+                BR.C    .RETURN_0
                 
                 DEC     R1
                 AND     R3, R1, R4
@@ -490,27 +627,28 @@ geracacto:      ; A funcao recebe em R1 o valor da altura.
                 LOAD    R4, M[R6] ; POP
                 INC     R6 ; POP
                 
-                JMP     R7 ; Retorna valor entre 1 e altura.
+                JMP     R7
                 
-.ret0:          MVI     R3, 0
+.RETURN_0:      MVI     R3, 0
 
                 LOAD    R5, M[R6] ; POP
                 INC     R6 ; POP
                 LOAD    R4, M[R6] ; POP
                 INC     R6 ; POP
                 
-                JMP     R7 ; Retorna 0.
+                JMP     R7
 
-GAME_OVER:      
+PRINT_TEXT:     ; R1: Memory adress of the string that should be printed.  
                 DEC     R6
                 STOR    M[R6], R4
                 DEC     R6
                 STOR    M[R6], R5
 
+                MOV     R4, R1
+
                 MVI     R1, TERM_WRITE
                 MVI     R2, TERM_CURSOR
                 MVI     R3, TERM_COLOR
-                MVI     R4, GAME_OVER_STR
 
 .LOOP:          LOAD    R5, M[R4]
                 INC     R4
@@ -541,16 +679,12 @@ GAME_OVER:
                 BR      .LOOP
 
 .End:           
-                MVI     R5, SCORE
-                LOAD    R5, M[R5]
-                STOR    M[R1], R5
-                
                 LOAD    R5, M[R6]
                 INC     R6
                 LOAD    R4, M[R6]
                 INC     R6
                 JMP     R7
-                
+
 ; -----------------
 ; AUXILIARY ISR'S (AISR)
 ; -----------------
@@ -609,3 +743,20 @@ KEY_UP_ISR:     DEC     R6
                 LOAD    R1, M[R6]
                 INC     R6
                 RTI
+
+ORIG            7F00h
+KEY_ZERO_ISR:   DEC     R6
+                STOR    M[R6], R1
+                DEC     R6
+                STOR    M[R6], R2
+
+                MVI     R1, PLAY_AGAIN
+                LOAD    R2, M[R1]
+                INC     R2
+                STOR    M[R1], R2
+
+                LOAD    R2, M[R6]
+                INC     R6
+                LOAD    R1, M[R6]
+                INC     R6
+                RTI     
