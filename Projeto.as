@@ -34,18 +34,17 @@ INT_MASK        EQU     FFFAh
 INT_MASK_VAL    EQU     8009h ; 1000 0000 0000 1001 b
 
 ; Game Data
-GAME_BASE       EQU     21
 MAX_JUMP        EQU     5
 MAX_CACTUS_H    EQU     3
-GAME_BASE       EQU     21
-DIN_CHAR        EQU     '>'
 DIN_COLUMN      EQU     7
 FIELD_SIZE      EQU     80
-FIELD_FLOOR     EQU     '-'
-FIELD_CACTUS    EQU     '#'
 JMP_KEY         EQU     ' '
 
 ; GUI Data
+GAME_BASE       EQU     21
+DIN_CHAR        EQU     '>'
+FIELD_FLOOR     EQU     '-'
+FIELD_CACTUS    EQU     '#'
 GAME_OVER_STR   STR     0,1,a00h,0,2,ffh,'                                         GAME OVER',0,1,b00h,'                               PRESS ANY KEY TO TRY AGAIN',0,0
 WELCOME_STR     STR     0,1,c00h,'                          WELCOME TO THE DINOSSAUR GAME',0,1,d00h,'                      USE THE SPACEBAR OR THE UPKEY TO JUMP',0,1,f00h,'                             PRESS ANY KEY TO BEGIN',0,1,2800h,'</> BY GABRIEL VIEIRA AND YASSIR YASSIN',0,1,2900h,'LICENSED UNDER THE GNU-GPL V3',0,0
 
