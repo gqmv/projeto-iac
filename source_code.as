@@ -27,25 +27,24 @@ TIMER_CONTROL   EQU     FFF7h
 TIMER_COUNTER   EQU     FFF6h
 TIMER_SETSTART  EQU     1
 TIMER_SETSTOP   EQU     0
-TIMER_COUNTVAL  EQU     2
+TIMER_COUNTVAL  EQU     1
 
 ; Interruption Handling
 INT_MASK        EQU     FFFAh
 INT_MASK_VAL    EQU     8009h ; 1000 0000 0000 1001 b
 
 ; Game Data
-GAME_BASE       EQU     21
 MAX_JUMP        EQU     5
 MAX_CACTUS_H    EQU     3
-GAME_BASE       EQU     21
-DIN_CHAR        EQU     '>'
 DIN_COLUMN      EQU     7
 FIELD_SIZE      EQU     80
-FIELD_FLOOR     EQU     '-'
-FIELD_CACTUS    EQU     '#'
 JMP_KEY         EQU     ' '
 
 ; GUI Data
+GAME_BASE       EQU     21
+DIN_CHAR        EQU     '>'
+FIELD_FLOOR     EQU     '-'
+FIELD_CACTUS    EQU     '#'
 GAME_OVER_STR   STR     0,1,a00h,0,2,ffh,'                                         GAME OVER',0,1,b00h,'                               PRESS ANY KEY TO TRY AGAIN',0,0
 WELCOME_STR     STR     0,1,c00h,'                          WELCOME TO THE DINOSSAUR GAME',0,1,d00h,'                      USE THE SPACEBAR OR THE UPKEY TO JUMP',0,1,f00h,'                             PRESS ANY KEY TO BEGIN',0,1,2800h,'</> BY GABRIEL VIEIRA AND YASSIR YASSIN',0,1,2900h,'LICENSED UNDER THE GNU-GPL V3',0,0
 
@@ -303,63 +302,60 @@ CLEAR_TERMINAL:
                 JMP     R7
 
 PRINT_DISP7:    ; R1: The numeric value that should be displayed.
-                MVI     R3, Fh
-                AND     R3, R3, R1
+                
+                DEC     R6
+                STOR    M[R6], R7
+                DEC     R6
+                STOR    M[R6], R4
 
-                ; Print on D0
-                MVI     R2, DISP7_D0
-                STOR    M[R2], R3
-                
-                ; Print on D1
-                SHR     R1
-                SHR     R1
-                SHR     R1
-                SHR     R1
-                MVI     R3, Fh
-                AND     R3, R3, R1
-                MVI     R2, DISP7_D1
-                STOR    M[R2], R3
-                
-                ; Print on D2
-                SHR     R1
-                SHR     R1
-                SHR     R1
-                SHR     R1
-                MVI     R3, Fh
-                AND     R3, R3, R1
-                MVI     R2, DISP7_D2
-                STOR    M[R2], R3
-                
-                ; Print on D3
-                SHR     R1
-                SHR     R1
-                SHR     R1
-                SHR     R1
-                MVI     R3, Fh
-                AND     R3, R3, R1
-                MVI     R2, DISP7_D3
-                STOR    M[R2], R3
-                
-                ; Print on D4
-                SHR     R1
-                SHR     R1
-                SHR     R1
-                SHR     R1
-                MVI     R3, Fh
-                AND     R3, R3, R1
-                MVI     R2, DISP7_D4
-                STOR    M[R2], R3
-                
-                ; Print on D5
-                SHR     R1
-                SHR     R1
-                SHR     R1
-                SHR     R1
-                MVI     R3, Fh
-                AND     R3, R3, R1
-                MVI     R2, DISP7_D5
-                STOR    M[R2], R3
-                
+                MVI     R2, 10000
+
+                JAL     DIV_INT
+
+                MVI     R4, DISP7_D4
+                STOR    M[R4], R3
+
+                LOAD    R1, M[R6]
+                INC     R6
+
+                MVI     R2, 1000
+
+                JAL     DIV_INT
+
+                MVI     R4, DISP7_D3
+                STOR    M[R4], R3
+
+                LOAD    R1, M[R6]
+                INC     R6
+
+                MVI     R2, 100
+
+                JAL     DIV_INT
+
+                MVI     R4, DISP7_D2
+                STOR    M[R4], R3
+
+                LOAD    R1, M[R6]
+                INC     R6
+
+                MVI     R2, 10
+
+                JAL     DIV_INT
+
+                MVI     R4, DISP7_D1
+                STOR    M[R4], R3
+
+                LOAD    R1, M[R6]
+                INC     R6
+
+                MVI     R4, DISP7_D0
+                STOR    M[R4], R1
+
+                LOAD    R4, M[R6]
+                INC     R6
+                LOAD    R7, M[R6]
+                INC     R6
+
                 JMP     R7
 
 PRINT_FIELD:    ; R1: Memory address of the vector.
@@ -570,6 +566,27 @@ PRINT_TEXT:     ; R1: Memory adress of the string that should be printed.
                 LOAD    R4, M[R6]
                 INC     R6
                 
+                JMP     R7
+
+DIV_INT:        ; R1: The numerand.
+                ; R2: The dividend.
+                ; Returns: R3: The integer division result.
+                ; Returns: Stack: The remainder.
+
+                MVI     R3, 0
+
+.LOOP:          CMP     R1, R2
+                BR.N    .CONTINUE
+
+                INC     R3
+
+                SUB     R1, R1, R2
+
+                BR      .LOOP
+
+.CONTINUE:      DEC     R6
+                STOR    M[R6], R1
+
                 JMP     R7
 
 CHECK_LOST:     ; Returns 1: If the player lost.
